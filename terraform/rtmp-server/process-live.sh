@@ -30,16 +30,24 @@ while getopts 'i:k:u:w:' OPT; do
     esac
 done
 
-cmd="ffmpeg -stream_loop -1 -re -i $sfile -c:v libx264 -s 720x576 -c:a copy -f hls -hls_time 10 -hls_list_size 3 $workdir/live.m3u8"
+workdir=$(echo -n $sfile | md5)
+realdir=tmp/$workdir
+echo "init...."
+mkdir -p $realdir
+#rm -rf $workdir/*
+
+cmd="ffmpeg -stream_loop -1 -re -i $sfile -c:v libx264 -s 720x576 -c:a copy -f hls -hls_time 10 -hls_list_size 3 $realdir/live.m3u8"
 
 $cmd 1>/dev/null 2>&1 &
  
-echo $key
-echo $workdir
-cd $workdir
+echo "tm work dir is $realdir"
+cd $realdir
 
-#tmpdir=$(echo -n 'some-value' | md5)
-#echo $tmpdir
+echo "creating stream key ...."
+ipfs key rm $workdir
+
+streamkey=$(ipfs key gen --type=rsa --size=2048 $workdir)
+echo "your ipns streamkey is $streamkey"
 
 while true; do
   nextfile=$(cat ${what}.m3u8 | tail -n1)
@@ -64,7 +72,7 @@ while true; do
           echo ${nextfile} Add Failed, skipping for retry
         else
           # Update the log with the future name (hash already there)
-          echo added ${hash} ${nextfile} ${time}.ts ${timecode}${reset_stream_marker} >>~/process-stream.log
+          echo added ${hash} ${nextfile} ${time}.ts ${timecode}${reset_stream_marker} >>process-stream.log
 
           # Remove nextfile and tmp.txt
           rm -f ${nextfile} ~/tmp.txt
@@ -74,11 +82,12 @@ while true; do
           echo "#EXT-X-MEDIA-SEQUENCE:0" >>current.m3u8
           echo "#EXT-X-PLAYLIST-TYPE:EVENT" >>current.m3u8
 
-          cat ~/process-stream.log | awk '{print $6"#EXTINF:"$5",\n'${IPFS_GATEWAY}'/ipfs/"$2}' | sed 's/#EXT-X-DISCONTINUITY#/#EXT-X-DISCONTINUITY\n#/g' >>current.m3u8
+          cat process-stream.log | awk '{print $6"#EXTINF:"$5",\n'${IPFS_GATEWAY}'/ipfs/"$2}' | sed 's/#EXT-X-DISCONTINUITY#/#EXT-X-DISCONTINUITY\n#/g' >>current.m3u8
 
           # Add m3u8 file to IPFS and IPNS publish (uncomment to enable)
           m3u8hash=$(ipfs add current.m3u8 | awk '{print $2}')
-          ipfs name publish --ttl 1s --timeout=5s $m3u8hash &
+          echo "ipfs name publish --key=$workdir --ttl 1s --timeout=5s $m3u8hash "
+          ipfs name publish --key=$workdir --ttl 1s --timeout=5s $m3u8hash &
           
           # Copy files to web server
           #cp current.m3u8 /var/www/html/live.m3u8
