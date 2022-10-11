@@ -47,6 +47,7 @@ echo "creating stream key ...."
 ipfs key rm $workdir
 
 streamkey=$(ipfs key gen --type=rsa --size=2048 $workdir)
+#streamkey="4c083e39c796d99dbd7d9fbe6085a086"
 echo "your ipns streamkey is $streamkey"
 
 while true; do
