@@ -30,13 +30,15 @@ while getopts 'i:k:u:w:' OPT; do
     esac
 done
 
-workdir=$(echo -n $sfile | md5)
+workdir=$(echo -n $sfile | md5sum|awk '{print $1}')
 realdir=tmp/$workdir
+echo $realdir
 echo "init...."
 mkdir -p $realdir
 #rm -rf $workdir/*
 
 cmd="ffmpeg -stream_loop -1 -re -i $sfile -c:v libx264 -s 720x576 -c:a copy -f hls -hls_time 10 -hls_list_size 3 $realdir/live.m3u8"
+echo $cmd
 
 $cmd 1>/dev/null 2>&1 &
  
@@ -47,11 +49,12 @@ echo "creating stream key ...."
 ipfs key rm $workdir
 
 streamkey=$(ipfs key gen --type=rsa --size=2048 $workdir)
+echo $streamkey
 echo "your ipns streamkey is $streamkey"
 
 while true; do
   nextfile=$(cat ${what}.m3u8 | tail -n1)
-
+  echo $nextfile
   if [ -f "${nextfile}" ]; then
     timecode=$(grep -B1 ${nextfile} ${what}.m3u8 | head -n1 | awk -F : '{print $2}' | tr -d ,)
     if ! [ -z "${nextfile}" ]; then
