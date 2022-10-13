@@ -37,7 +37,7 @@ echo "init...."
 mkdir -p $realdir
 #rm -rf $workdir/*
 
-cmd="ffmpeg -stream_loop -1 -re -i $sfile -c:v libx264 -s 720x576 -c:a copy -f hls -hls_time 10 -hls_list_size 3 $realdir/live.m3u8"
+cmd="ffmpeg -stream_loop -1 -re -i $sfile -c:v libx264  -c:a copy -maxrate 0.3M -f hls -hls_time 10 -hls_list_size 3 $realdir/live.m3u8"
 echo $cmd
 
 $cmd 1>/dev/null 2>&1 &
@@ -48,10 +48,12 @@ cd $realdir
 echo "creating stream key ...."
 ipfs key rm $workdir
 
-streamkey=$(ipfs key gen --type=rsa --size=2048 $workdir)
+streamkey=$(ipfs key gen --type=rsa --size=2048 --ipns-base=b58mh  $workdir)
 echo $streamkey
 #streamkey="4c083e39c796d99dbd7d9fbe6085a086"
 echo "your ipns streamkey is $streamkey"
+
+ipfs key list -l --ipns-base=b58mh
 
 while true; do
   nextfile=$(cat ${what}.m3u8 | tail -n1)
@@ -90,7 +92,7 @@ while true; do
 
           # Add m3u8 file to IPFS and IPNS publish (uncomment to enable)
           m3u8hash=$(ipfs add current.m3u8 | awk '{print $2}')
-          echo "ipfs name publish --key=$workdir --ttl 1s --timeout=5s $m3u8hash "
+          echo "ipfs name publish --key=$workdir --ttl 1s --timeout=5s --ipns-base=b58mh $m3u8hash "
           ipfs name publish --key=$workdir --ttl 1s --timeout=5s $m3u8hash &
           
           # Copy files to web server
