@@ -37,10 +37,10 @@ echo "init...."
 mkdir -p $realdir
 #rm -rf $workdir/*
 
-cmd="ffmpeg -stream_loop -1 -re -i $sfile -c:v libx264  -c:a copy -maxrate 0.3M -f hls -hls_time 10 -hls_list_size 3 $realdir/live.m3u8"
-echo $cmd
+#cmd="ffmpeg -stream_loop -1 -re -i $sfile -c:v libx264  -c:a copy -maxrate 0.3M -f hls -hls_time 10 -hls_list_size 3 $realdir/live.m3u8"
+#echo $cmd
 
-$cmd 1>/dev/null 2>&1 &
+#$cmd 1>/dev/null 2>&1 &
  
 echo "tm work dir is $realdir"
 cd $realdir
@@ -55,11 +55,24 @@ echo "your ipns streamkey is $streamkey"
 
 ipfs key list -l --ipns-base=b58mh
 
+baseurl=$(echo "http://newvideo.dangtutv.cn:8278/CCTVsports/playlist.m3u8" | awk 'BEGIN{FS=OFS="/"}NF--')
+
+echo $baseurl
+
+declare -a hm
+
 while true; do
+  curl -s $sfile -o ${what}.m3u8
+  
   nextfile=$(cat ${what}.m3u8 | tail -n1)
   echo $nextfile
-  if [ -f "${nextfile}" ]; then
+  tsfile=$baseurl/$nextfile 
+  echo $tsfile
+  if ! [ -f "${nextfile}" ]; then
+    curl -s $tsfile -o $nextfile
+
     timecode=$(grep -B1 ${nextfile} ${what}.m3u8 | head -n1 | awk -F : '{print $2}' | tr -d ,)
+    echo "timecode=$timecode"
     if ! [ -z "${nextfile}" ]; then
       if ! [ -z "{$timecode}" ]; then
         reset_stream_marker=''
@@ -81,7 +94,7 @@ while true; do
           echo added ${hash} ${nextfile} ${time}.ts ${timecode}${reset_stream_marker} >>process-stream.log
 
           # Remove nextfile and tmp.txt
-          rm -f ${nextfile} ~/tmp.txt
+          #rm -f ${nextfile} ~/tmp.txt
           echo "#EXTM3U" >current.m3u8
           echo "#EXT-X-VERSION:3" >>current.m3u8
           echo "#EXT-X-TARGETDURATION:20" >>current.m3u8
