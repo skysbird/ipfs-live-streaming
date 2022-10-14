@@ -30,12 +30,15 @@ while getopts 'i:k:u:w:' OPT; do
     esac
 done
 
-workdir=$(echo -n $sfile | md5|awk '{print $1}')
+workdir=$(echo -n $sfile | md5sum|awk '{print $1}')
 realdir=tmp/$workdir
 echo $realdir
 echo "init...."
 mkdir -p $realdir
-#rm -rf $workdir/*
+if ! [ -z $workdir ]; then
+	echo "clear $workdir"
+	rm -rf $workdir/*
+fi
 
 #cmd="ffmpeg -stream_loop -1 -re -i $sfile -c:v libx264  -c:a copy -maxrate 0.3M -f hls -hls_time 10 -hls_list_size 3 $realdir/live.m3u8"
 #echo $cmd
@@ -65,14 +68,18 @@ while true; do
   curl -s $sfile -o ${what}.m3u8
   
   nextfile=$(cat ${what}.m3u8 | tail -n1)
-  echo $nextfile
+  #echo $nextfile
   tsfile=$baseurl/$nextfile 
-  echo $tsfile
-  if ! [ -f "${nextfile}" ]; then
+  #echo $tsfile
+  processed=$(grep $nextfile process-stream.log)
+  #echo "processed=$processed"
+
+  if  [ -z "${processed}" ]; then
     curl -s $tsfile -o $nextfile
 
     timecode=$(grep -B1 ${nextfile} ${what}.m3u8 | head -n1 | awk -F : '{print $2}' | tr -d ,)
-    echo "timecode=$timecode"
+    #echo "timecode=$timecode"
+
     if ! [ -z "${nextfile}" ]; then
       if ! [ -z "{$timecode}" ]; then
         reset_stream_marker=''
@@ -92,9 +99,10 @@ while true; do
         else
           # Update the log with the future name (hash already there)
           echo added ${hash} ${nextfile} ${time}.ts ${timecode}${reset_stream_marker} >>process-stream.log
+          echo added ${hash} ${nextfile} ${time}.ts ${timecode}${reset_stream_marker} 
 
           # Remove nextfile and tmp.txt
-          #rm -f ${nextfile} ~/tmp.txt
+          rm -f ${nextfile} ~/tmp.txt
           echo "#EXTM3U" >current.m3u8
           echo "#EXT-X-VERSION:3" >>current.m3u8
           echo "#EXT-X-TARGETDURATION:20" >>current.m3u8

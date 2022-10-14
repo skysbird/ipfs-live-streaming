@@ -30,7 +30,7 @@ while getopts 'i:k:u:w:' OPT; do
     esac
 done
 
-workdir=$(echo -n $sfile | md5|awk '{print $1}')
+workdir=$(echo -n $sfile | md5sum|awk '{print $1}')
 realdir=tmp/$workdir
 echo $realdir
 echo "init...."
