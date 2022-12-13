@@ -54,7 +54,7 @@ echo $streamkey
 echo "your ipns streamkey is $streamkey"
 
 ipfs key list -l --ipns-base=b58mh
-
+a=0
 while true; do
   nextfile=$(cat ${what}.m3u8 | tail -n1)
   echo $nextfile
@@ -85,16 +85,18 @@ while true; do
           echo "#EXTM3U" >current.m3u8
           echo "#EXT-X-VERSION:3" >>current.m3u8
           echo "#EXT-X-TARGETDURATION:20" >>current.m3u8
-          echo "#EXT-X-MEDIA-SEQUENCE:0" >>current.m3u8
-          echo "#EXT-X-PLAYLIST-TYPE:EVENT" >>current.m3u8
+          echo "#EXT-X-MEDIA-SEQUENCE:${a}" >>current.m3u8
+          #echo "#EXT-X-PLAYLIST-TYPE:EVENT" >>current.m3u8
 
-          cat process-stream.log | awk '{print $6"#EXTINF:"$5",\n'${IPFS_GATEWAY}'/ipfs/"$2}' | sed 's/#EXT-X-DISCONTINUITY#/#EXT-X-DISCONTINUITY\n#/g' >>current.m3u8
+          tail -n 10 process-stream.log | awk '{print $6"#EXTINF:"$5",\n'${IPFS_GATEWAY}'/ipfs/"$2}' | sed 's/#EXT-X-DISCONTINUITY#/#EXT-X-DISCONTINUITY\n#/g' >>current.m3u8
 
           # Add m3u8 file to IPFS and IPNS publish (uncomment to enable)
           m3u8hash=$(ipfs add current.m3u8 | awk '{print $2}')
           echo "ipfs name publish --key=$workdir --ttl 1s --timeout=5s --ipns-base=b58mh $m3u8hash "
           ipfs name publish --key=$workdir --ttl 1s --timeout=5s $m3u8hash &
-          
+         
+          a=$(($a+1))
+
           # Copy files to web server
           #cp current.m3u8 /var/www/html/live.m3u8
           #cp ~/process-stream.log /var/www/html/live.log
